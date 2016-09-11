@@ -28,11 +28,11 @@ public class ZeusActivity extends AppCompatActivity implements ZeusManager.OnPer
 
     }
 
-    public void takePhoto(View view) {
+    public void onSinglePermission(View view) {
         zeusManager.checkPermission(Manifest.permission.CAMERA,  true);
     }
 
-    public void onMany(View view) {
+    public void onMultiPermissions(View view) {
         zeusManager.checkPermissions(permissionArr);
     }
 

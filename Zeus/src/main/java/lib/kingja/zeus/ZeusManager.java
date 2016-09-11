@@ -84,43 +84,62 @@ public class ZeusManager {
 
     }
 
+    /**
+     * 申请单个权限
+     * @param requirePermission 权限名
+     * @param ifSetting 是否跳转到设置页面 true 跳转 false 直接关闭
+     */
     public void checkPermission(String requirePermission, boolean ifSetting) {
         this.requirePermission = requirePermission;
-
         this.ifSetting = ifSetting;
-
         if (Build.VERSION.SDK_INT >= 23) {
             if (!isGranted(activity, requirePermission)) {//关闭授权
                 if (!activity.shouldShowRequestPermissionRationale(requirePermission)) {
                     showAllowDialog();
-                    Log.e("checkPermission", "4");
                     return;
                 }
-                Log.e("checkPermission", "5");
                 ActivityCompat.requestPermissions(activity, new String[]{requirePermission}, SINGLE);
                 return;
             } else {//开放授权
-                Log.e("checkPermission", "1");
                 onPermissionCallback.onAllow();
             }
         } else {//Android 6.0以下版本
-            Log.e("checkPermission", "2");
             onPermissionCallback.onAllow();
         }
     }
 
+    /**
+     * 多个权限申请
+     * @param permissionArr 权限名数组
+     */
+    public void checkPermissions(String[] permissionArr) {
+        String[] permissions = getDenyedPermissions(permissionArr);
+        if (permissions.length > 0) {
+            ActivityCompat.requestPermissions(activity, permissionArr, MULTI);
+        }
+    }
+
+    /**
+     * 判断是否已经开启全选
+     * @param activity
+     * @param requirePermission
+     * @return
+     */
     private boolean isGranted(Activity activity, String requirePermission) {
         return ContextCompat.checkSelfPermission(activity, requirePermission) == PackageManager.PERMISSION_GRANTED;
     }
 
+    /**
+     * 设置回调
+     * @param onPermissionCallback
+     */
     public void setOnPermissionCallback(OnPermissionCallback onPermissionCallback) {
         this.onPermissionCallback = onPermissionCallback;
     }
 
     public interface OnPermissionCallback {
-        void onAllow();
-
-        void onClose();
+        void onAllow();//单个权限被允许后doThing,比如开启相机
+        void onClose();//单个权限被拒绝后的关闭逻辑(可以关闭Activity)
     }
 
     /**
@@ -167,7 +186,7 @@ public class ZeusManager {
     }
 
     /**
-     * 权限多个权限被拒绝任何一个
+     * 多个权限被拒绝任何一个弹出对话框
      */
     public void showMulitDenyedDialog() {
         new AlertDialog.Builder(activity)
@@ -183,12 +202,17 @@ public class ZeusManager {
                 .show();
     }
 
+    /**
+     * 权限授权 回调
+     * @param requestCode
+     * @param permissions
+     * @param grantResults
+     */
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        if (requestCode == SINGLE) {//申请单个权限
+        if (requestCode == SINGLE) {//单个权限
             if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 if (onPermissionCallback != null) {
                     onPermissionCallback.onAllow();
-                    Log.e("checkPermission", "3");
                 }
             } else {
                 if (ifSetting) {
@@ -200,7 +224,7 @@ public class ZeusManager {
                 }
 
             }
-        } else {//申请多个权限
+        } else {//多个权限
             for (int i = 0; i < grantResults.length; i++) {
                 if (grantResults[i] == PackageManager.PERMISSION_DENIED) {
                     showMulitDenyedDialog();
@@ -211,14 +235,11 @@ public class ZeusManager {
         }
     }
 
-    public void checkPermissions(String[] permissionArr) {
-        String[] permissions = getDenyedPermissions(permissionArr);
-        Log.e("ZeusManager", "permissions: " + permissions.length);
-        if (permissions.length > 0) {
-            ActivityCompat.requestPermissions(activity, permissionArr, MULTI);
-        }
-    }
-
+    /**
+     * 获取未开启的权限
+     * @param permissionArr
+     * @return
+     */
     private String[] getDenyedPermissions(String[] permissionArr) {
         ArrayList<String> permiList = new ArrayList<>();
         for (String p : permissionArr) {
@@ -226,7 +247,6 @@ public class ZeusManager {
                 permiList.add(p);
             }
         }
-
         return permiList.toArray(new String[permiList.size()]);
     }
 }
