@@ -1,11 +1,14 @@
 package com.kingja.permission;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
+import android.telephony.TelephonyManager;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 
@@ -15,8 +18,7 @@ public class ZeusActivity extends AppCompatActivity implements ZeusManager.OnPer
 
     private ImageView iv;
     private ZeusManager zeusManager;
-    private String[] permissionArr = {Manifest.permission.CAMERA, Manifest.permission.READ_PHONE_STATE,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.ACCESS_FINE_LOCATION};
+    private String[] permissionArr = {Manifest.permission.CAMERA, Manifest.permission.READ_PHONE_STATE};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,15 +27,23 @@ public class ZeusActivity extends AppCompatActivity implements ZeusManager.OnPer
         iv = (ImageView) findViewById(R.id.iv);
         zeusManager = new ZeusManager(this);
         zeusManager.setOnPermissionCallback(this);
+        TelephonyManager mTm = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
+        String imei = mTm.getDeviceId();//imei
 
     }
 
     public void onSinglePermission(View view) {
-        zeusManager.checkPermission(Manifest.permission.CAMERA,  true);
+        if (zeusManager.checkPermission(Manifest.permission.CAMERA, true)) {
+            Log.e("onSinglePermission", "单个权限允许");
+            openCamera();
+        }
+
     }
 
     public void onMultiPermissions(View view) {
-        zeusManager.checkPermissions(permissionArr);
+        if (zeusManager.checkPermissions(permissionArr)) {
+            Log.e("onMultiPermissions", "多个权限允许");
+        }
     }
 
     @Override

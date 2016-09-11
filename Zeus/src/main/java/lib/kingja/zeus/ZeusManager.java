@@ -10,7 +10,6 @@ import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
-import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,11 +24,15 @@ import java.util.Map;
 public class ZeusManager {
     private static final int SINGLE = 1;
     private static final int MULTI = 2;
+    private static final int SINGLE_SETTING = 10;
+    private static final int MULTI_SETTING = 20;
+    private boolean isSingle;
     private Activity activity;
     private String requirePermission;
     private boolean ifSetting;
     private OnPermissionCallback onPermissionCallback;
     private static final Map<String, String> PERMISSIONS;
+
     private static final String SENSORS = "传感器";
     private static final String CALENDAR = "日历";
     private static final String CAMERA = "相机";
@@ -78,6 +81,8 @@ public class ZeusManager {
         PERMISSIONS.put("android.permission.READ_CELL_BROADCASTS", SMS);
     }
 
+    private String[] permissionArr;
+
 
     public ZeusManager(Activity activity) {
         this.activity = activity;
@@ -86,41 +91,51 @@ public class ZeusManager {
 
     /**
      * 申请单个权限
+     *
      * @param requirePermission 权限名
-     * @param ifSetting 是否跳转到设置页面 true 跳转 false 直接关闭
+     * @param ifSetting         是否跳转到设置页面 true 跳转 false 直接关闭
      */
-    public void checkPermission(String requirePermission, boolean ifSetting) {
+    public boolean checkPermission(String requirePermission, boolean ifSetting) {
+        isSingle = true;
         this.requirePermission = requirePermission;
         this.ifSetting = ifSetting;
         if (Build.VERSION.SDK_INT >= 23) {
             if (!isGranted(activity, requirePermission)) {//关闭授权
                 if (!activity.shouldShowRequestPermissionRationale(requirePermission)) {
                     showAllowDialog();
-                    return;
+                    return false;
                 }
                 ActivityCompat.requestPermissions(activity, new String[]{requirePermission}, SINGLE);
-                return;
+                return false;
             } else {//开放授权
                 onPermissionCallback.onAllow();
+                return true;
             }
         } else {//Android 6.0以下版本
             onPermissionCallback.onAllow();
+            return true;
         }
     }
 
     /**
      * 多个权限申请
+     *
      * @param permissionArr 权限名数组
      */
-    public void checkPermissions(String[] permissionArr) {
+    public boolean checkPermissions(String[] permissionArr) {
+        this.permissionArr = permissionArr;
+        isSingle = false;
         String[] permissions = getDenyedPermissions(permissionArr);
         if (permissions.length > 0) {
             ActivityCompat.requestPermissions(activity, permissionArr, MULTI);
+            return false;
         }
+        return true;
     }
 
     /**
      * 判断是否已经开启全选
+     *
      * @param activity
      * @param requirePermission
      * @return
@@ -131,6 +146,7 @@ public class ZeusManager {
 
     /**
      * 设置回调
+     *
      * @param onPermissionCallback
      */
     public void setOnPermissionCallback(OnPermissionCallback onPermissionCallback) {
@@ -139,6 +155,7 @@ public class ZeusManager {
 
     public interface OnPermissionCallback {
         void onAllow();//单个权限被允许后doThing,比如开启相机
+
         void onClose();//单个权限被拒绝后的关闭逻辑(可以关闭Activity)
     }
 
@@ -165,7 +182,7 @@ public class ZeusManager {
     private void startAppSettings() {
         Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
         intent.setData(Uri.fromParts("package", activity.getPackageName(), null));
-        activity.startActivity(intent);
+        activity.startActivityForResult(intent, isSingle ? SINGLE_SETTING : MULTI_SETTING);
     }
 
     /**
@@ -204,6 +221,7 @@ public class ZeusManager {
 
     /**
      * 权限授权 回调
+     *
      * @param requestCode
      * @param permissions
      * @param grantResults
@@ -235,8 +253,26 @@ public class ZeusManager {
         }
     }
 
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == SINGLE_SETTING) {
+            if (isGranted(activity, requirePermission)) {
+                activity.finish();
+            }
+
+        } else if (requestCode == MULTI_SETTING) {
+            if (!checkAllGranted(permissionArr)) {
+                activity.finish();
+            }
+        }
+    }
+
+    private boolean checkAllGranted(String[] permissionArr) {
+        return !(getDenyedPermissions(permissionArr).length>0);
+    }
+
     /**
      * 获取未开启的权限
+     *
      * @param permissionArr
      * @return
      */
