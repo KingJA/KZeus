@@ -15,19 +15,25 @@ public class ZeusActivity extends AppCompatActivity implements ZeusManager.OnPer
 
     private ImageView iv;
     private ZeusManager zeusManager;
+    private String[] permissionArr = {Manifest.permission.CAMERA, Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.ACCESS_FINE_LOCATION};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         iv = (ImageView) findViewById(R.id.iv);
-        zeusManager = new ZeusManager(this, Manifest.permission.CAMERA,0);
+        zeusManager = new ZeusManager(this);
         zeusManager.setOnPermissionCallback(this);
 
     }
 
     public void takePhoto(View view) {
-        zeusManager.checkPermission();
+        zeusManager.checkPermission(Manifest.permission.CAMERA,  true);
+    }
+
+    public void onMany(View view) {
+        zeusManager.checkPermissions(permissionArr);
     }
 
     @Override
@@ -54,5 +60,10 @@ public class ZeusActivity extends AppCompatActivity implements ZeusManager.OnPer
     @Override
     public void onAllow() {
         openCamera();
+    }
+
+    @Override
+    public void onClose() {
+        finish();
     }
 }

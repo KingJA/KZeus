@@ -15,6 +15,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="take phone" />
+
+    <Button
+        android:onClick="onMany"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="多个权限申请" />
     <ImageView
         android:id="@+id/iv"
         android:scaleType="centerCrop"

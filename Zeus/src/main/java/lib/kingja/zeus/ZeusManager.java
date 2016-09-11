@@ -10,6 +10,7 @@ import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,9 +23,11 @@ import java.util.Map;
  * Email:kingjavip@gmail.com
  */
 public class ZeusManager {
+    private static final int SINGLE = 1;
+    private static final int MULTI = 2;
     private Activity activity;
     private String requirePermission;
-    private int mRequestCode;
+    private boolean ifSetting;
     private OnPermissionCallback onPermissionCallback;
     private static final Map<String, String> PERMISSIONS;
     private static final String SENSORS = "传感器";
@@ -76,34 +79,38 @@ public class ZeusManager {
     }
 
 
-
     public ZeusManager(Activity activity) {
         this.activity = activity;
 
     }
 
-    public void checkPermission(String requirePermission, int requestCode) {
+    public void checkPermission(String requirePermission, boolean ifSetting) {
         this.requirePermission = requirePermission;
-        this.mRequestCode = requestCode;
+
+        this.ifSetting = ifSetting;
 
         if (Build.VERSION.SDK_INT >= 23) {
-            if (isDenyed(activity, requirePermission)) {
+            if (!isGranted(activity, requirePermission)) {//关闭授权
                 if (!activity.shouldShowRequestPermissionRationale(requirePermission)) {
                     showAllowDialog();
+                    Log.e("checkPermission", "4");
                     return;
                 }
-                ActivityCompat.requestPermissions(activity, new String[]{requirePermission}, mRequestCode);
+                Log.e("checkPermission", "5");
+                ActivityCompat.requestPermissions(activity, new String[]{requirePermission}, SINGLE);
                 return;
-            } else {
+            } else {//开放授权
+                Log.e("checkPermission", "1");
                 onPermissionCallback.onAllow();
             }
-        } else {
+        } else {//Android 6.0以下版本
+            Log.e("checkPermission", "2");
             onPermissionCallback.onAllow();
         }
     }
 
-    private boolean isDenyed(Activity activity, String requirePermission) {
-        return ContextCompat.checkSelfPermission(activity, requirePermission) != PackageManager.PERMISSION_GRANTED;
+    private boolean isGranted(Activity activity, String requirePermission) {
+        return ContextCompat.checkSelfPermission(activity, requirePermission) == PackageManager.PERMISSION_GRANTED;
     }
 
     public void setOnPermissionCallback(OnPermissionCallback onPermissionCallback) {
@@ -112,18 +119,23 @@ public class ZeusManager {
 
     public interface OnPermissionCallback {
         void onAllow();
+
+        void onClose();
     }
 
+    /**
+     * 跳出需要开启权限的对话框
+     */
     private void showAllowDialog() {
         new AlertDialog.Builder(activity)
+                .setCancelable(false)
                 .setMessage("需要开启\"" + PERMISSIONS.get(requirePermission) + "\"权限")
                 .setPositiveButton("确定", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        ActivityCompat.requestPermissions(activity, new String[]{requirePermission}, mRequestCode);
+                        ActivityCompat.requestPermissions(activity, new String[]{requirePermission}, SINGLE);
                     }
                 })
-                .setNegativeButton("取消", null)
                 .create()
                 .show();
     }
@@ -141,45 +153,76 @@ public class ZeusManager {
      * 权限请求被拒绝
      */
     public void showDenyedDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-        builder.setMessage("当前应用缺少必要权限\n请点击\"设置\"-\"权限\"打开全选\n最后点击两次返回按钮即可返回应用");
-        builder.setNegativeButton("退出", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                activity.finish();
-            }
-        });
-        builder.setPositiveButton("设置", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                startAppSettings();
-            }
-        });
-        builder.show();
+        new AlertDialog.Builder(activity)
+                .setMessage("当前应用缺少必要权限\n请点击\"设置\"-\"权限\"打开全选\n最后点击两次返回按钮即可返回应用")
+                .setCancelable(false)
+                .setPositiveButton("设置", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        startAppSettings();
+                    }
+                })
+                .create()
+                .show();
+    }
+
+    /**
+     * 权限多个权限被拒绝任何一个
+     */
+    public void showMulitDenyedDialog() {
+        new AlertDialog.Builder(activity)
+                .setMessage("当前应用缺少必要权限\n请点击\"设置\"-\"权限\"打开全选\n最后点击两次返回按钮即可返回应用")
+                .setCancelable(false)
+                .setNegativeButton("设置", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        startAppSettings();
+                    }
+                })
+                .create()
+                .show();
     }
 
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        if (requestCode == mRequestCode) {
+        if (requestCode == SINGLE) {//申请单个权限
             if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                onPermissionCallback.onAllow();
+                if (onPermissionCallback != null) {
+                    onPermissionCallback.onAllow();
+                    Log.e("checkPermission", "3");
+                }
             } else {
-                showDenyedDialog();
+                if (ifSetting) {
+                    showDenyedDialog();
+                } else {
+                    if (onPermissionCallback != null) {
+                        onPermissionCallback.onClose();
+                    }
+                }
+
             }
+        } else {//申请多个权限
+            for (int i = 0; i < grantResults.length; i++) {
+                if (grantResults[i] == PackageManager.PERMISSION_DENIED) {
+                    showMulitDenyedDialog();
+                    return;
+                }
+            }
+
         }
     }
 
-    public  void checkPermissions(String[] permissionArr, int requestCode) {
-        this.mRequestCode = requestCode;
+    public void checkPermissions(String[] permissionArr) {
         String[] permissions = getDenyedPermissions(permissionArr);
+        Log.e("ZeusManager", "permissions: " + permissions.length);
         if (permissions.length > 0) {
-            ActivityCompat.requestPermissions(activity, new String[]{requirePermission}, mRequestCode);
+            ActivityCompat.requestPermissions(activity, permissionArr, MULTI);
         }
     }
 
     private String[] getDenyedPermissions(String[] permissionArr) {
         ArrayList<String> permiList = new ArrayList<>();
         for (String p : permissionArr) {
-            if (isDenyed(activity, p)) {
+            if (!isGranted(activity, p)) {
                 permiList.add(p);
             }
         }
