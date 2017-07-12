@@ -27,8 +27,6 @@ public class ZeusActivity extends AppCompatActivity implements ZeusManager.OnPer
         iv = (ImageView) findViewById(R.id.iv);
         zeusManager = new ZeusManager(this);
         zeusManager.setOnPermissionCallback(this);
-        TelephonyManager mTm = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
-        String imei = mTm.getDeviceId();//imei
 
     }
 
